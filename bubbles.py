@@ -9,7 +9,7 @@ class Bubble():
         self.coords = {}
         for variable in ('x', 'y', 'z', 'time'):
             self.coords[variable] = dataset[variable][:]
-
+        self.coords['time'] = self.coords['time']*86400 # convert to seconds
         # get the radial grid centered on the Bubble
         self.radius_grid()
 
@@ -34,6 +34,8 @@ class Bubble():
         self.thermal_volume()
         self.thermal_height()
         self.thermal_radius()
+        self.thermaldata['w_top'] = self.get_thermal_w()
+        self.thermaldata['buoyancy'] = self.get_thermal_average('buoyancy')
 
 
 
@@ -92,7 +94,7 @@ class Bubble():
         dr = np.diff(self.coords['rbins'])
         dr = np.append(dr, dr[-1]) # make same size
 
-        w_top = self.bubble_w() # estimated velocity of bubble rise
+        w_top = self.get_thermal_w() # estimated velocity of bubble rise
 
         for i, _ in enumerate(self.coords['time']):
             for k, _ in enumerate(self.coords['z']):
@@ -113,17 +115,18 @@ class Bubble():
 
     # thermal utilities -- perhaps I should make the thermal a separate class?
 
-    def thermal_average(self, az_av_field):
+    def get_thermal_average(self, az_av_field):
         '''average field within thermal mask'''
         dr = np.diff(self.coords['rbins'])
         dr = np.append(dr, dr[-1]) # make same size
         dz = self.coords['z'][1] - self.coords['z'][0] # assumes uniform z grid
-        average_purity = np.sum( 2.*np.pi * np.sum( self.coords['rbins'] * (self.thermal_mask() * self.az_av[az_av_field] * dr),
-         axis = 2) * dz, axis = 1)/(np.max(1., self.thermaldata['volume']))
+        average_purity = np.sum( 2.*np.pi * np.sum( self.coords['rbins'] * (self.get_thermal_mask() * self.az_av[az_av_field] * dr),
+         axis = 2) * dz, axis = 1)/(self.thermaldata['volume'])
         return average_purity
 
     def thermal_volume(self):
-        '''compute volume of the thermal'''
+        '''compute volume of the thermal
+        NOTE: could add some quality controls here... or check for multiple contours'''
         self.thermaldata['volume'] = np.zeros(self.coords['time'].shape)
         for step, _ in enumerate(self.coords['time']):
             self.thermaldata['volume'][step] = self.get_contour_volume(self.thermal_contour( step ))
@@ -152,11 +155,11 @@ class Bubble():
             print 'oh no'
             return
 
-    def bubble_w(self):
+    def get_thermal_w(self):
         '''vertical velocity of bubble, estimated from thermal theory'''
         return np.max(self.az_av['w'], axis =(1,2))/2.
 
-    def thermal_mask(self):
+    def get_thermal_mask(self):
         '''return interior of zero-contour of radially-averaged stream function'''
         masked_region = np.where(self.az_av['psi'] >= 0, 1.,0.)
         return masked_region
@@ -191,3 +194,20 @@ class Bubble():
             return(y[np.argmax(r)])
         except IndexError:
             return 0.
+
+
+    ### Plotting methods
+    def plot_1d(self, coord, fields, **kwargs):
+        '''a 1D plot'''
+
+        return
+
+    def plot_2d(self, coords,):
+        '''take coords: (x, y); field; and plot them using pcolormesh'''
+
+        return
+    def panelplot(self, coords, fields):
+        '''make panel plot using plot_1d or plot_2d methods'''
+
+
+        return
