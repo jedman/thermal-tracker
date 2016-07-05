@@ -1,7 +1,9 @@
 import numpy as np
 import netCDF4 as nc
 import matplotlib.pyplot as plt
-
+# TO DO
+## add a way to identify "good" tracked thermals from bad ones
+## one idea is a quick change in volume -- or velocity?
 class Bubble():
     def __init__(self, datafile):
         '''contains radial averaged data and thermal contour froma bubble simulation'''
@@ -36,8 +38,19 @@ class Bubble():
         self.thermal_radius()
         self.thermaldata['w_top'] = self.get_thermal_w()
         self.thermaldata['buoyancy'] = self.get_thermal_average('buoyancy')
+        self.thermalindex = np.arange(0,np.shape(self.coords['time'])[0]) # index contains all time steps
 
+        ## add a way to identify "good" tracked thermals from bad ones
+        ## one idea is a quick change in volume -- or velocity?
 
+    def thermal_trim(self, crit):
+        '''select for thermals satisfying crit, where crit is a function taking a bubble object and a timestep,
+        and returning a boolean'''
+        index = [i for i, t in enumerate(self.thermaldata['volume']) if crit(self, i)]
+        for variable in self.thermaldata:
+            self.thermaldata[variable] = self.thermaldata[variable][index]
+        self.thermalindex = index
+        return
 
     def radius_grid(self):
         '''initialize xgrid, ygrid, and rgrid'''
