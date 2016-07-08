@@ -24,10 +24,17 @@ class Bubble():
         self.az_av['rho'] = self.azimuthal_average(dataset['rho'][:])
         self.az_av['tracer'] = self.azimuthal_average(dataset['bubble'][:])
         self.az_av['buoyancy'] = self.azimuthal_average(self.buoyancy(dataset['rho'][:]))
+
+        # time-mean profiles
+        self.profiles = {}
+        self.profiles['rho'] = np.mean(dataset['rho'][:], axis = (0,2,3))
+
         # close the netCDF file
         dataset.close()
 
         self.az_av['psi'] = self.streamfunction() # radially-averaged streamfunction
+
+
 
 
     def thermal_init(self):
@@ -43,10 +50,11 @@ class Bubble():
         ## add a way to identify "good" tracked thermals from bad ones
         ## one idea is a quick change in volume -- or velocity?
 
-    def thermal_trim(self, crit):
+    def thermal_trim(self, crit, **kwargs):
         '''select for thermals satisfying crit, where crit is a function taking a bubble object and a timestep,
-        and returning a boolean'''
-        index = [i for i, t in enumerate(self.thermaldata['volume']) if crit(self, i)]
+        and returning a boolean
+        kwargs are additional keyword arguments to function crit'''
+        index = [i for i, t in enumerate(self.thermaldata['volume']) if crit(self, i, **kwargs)]
         for variable in self.thermaldata:
             self.thermaldata[variable] = self.thermaldata[variable][index]
         self.thermalindex = index
@@ -157,6 +165,22 @@ class Bubble():
         self.thermaldata['radius']=(0.75*self.thermaldata['volume'])**(1./3.)
         return
 
+    def froude(self, thetaprof):
+        # ingredients: N, thermal rise rate, thermal radius, thermal height
+        # calculating N
+        ggr = 9.81
+        c_p = 719. + 287.04
+        Nsq = ggr / theta_prof * ddzp(theta_prof, self.coords['z'])
+
+        # pull Nsq at the thermal height
+        N_loc = np.zeros(self.coords['time'][self.thermalindex].shape)
+        for i, _ in enumerate(self.coords['time'][self.thermalindex]):
+            N_loc[i] = Nsq[np.where(self.thermaldata['height'][i] == self.coords['z'])]
+
+        self.thermaldata['froude'] = self.thermaldata['w_top']/(N_loc* self.thermaldata['radius'])
+
+        return
+
 
     def thermal_contour(self, step):
         '''return the zero contour from a slice of stream function'''
@@ -212,15 +236,31 @@ class Bubble():
     ### Plotting methods
     def plot_1d(self, coord, fields, **kwargs):
         '''a 1D plot'''
-
+        print 'not implemented!'
         return
 
     def plot_2d(self, coords,):
         '''take coords: (x, y); field; and plot them using pcolormesh'''
+        print 'not implemented!'
 
         return
     def panelplot(self, coords, fields):
         '''make panel plot using plot_1d or plot_2d methods'''
-
-
+        print 'not implemented!'
         return
+
+def ddzp(prof1, z, sdo=False):
+    ''' calculate ddz of some scalar profile on the scalar levels,\
+       interpolating to the surface if sdo =True'''
+    dz = np.zeros(len(z))
+    dz[0] = 0.5*(z[0]+z[1])
+    for i in range(1,len(z)-1):
+       dz[i] = 0.5*(z[i+1]-z[i-1])
+    dz[-1]= dz[-2] # fudge for the top level -- don't know dzi[-1]
+    vflux = np.zeros(len(z)+1)
+    for k in xrange(1,len(z)):
+        vflux[k] = 0.5*(prof1[k]+prof1[k-1]) # value of prof1 at the interface k
+        if(sdo): # for EvRTdv and Eldl, the surface flux is nonzero, so use the value at the interface
+            vflux[0] = prof1[0]-(prof1[1]-prof1[0])/(z[1]-z[0])*z[0]
+    ddz_something = (vflux[1:] - vflux[0:-1])/dz[0:]
+    return ddz_something
